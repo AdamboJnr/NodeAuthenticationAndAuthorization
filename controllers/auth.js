@@ -2,6 +2,7 @@ const { schema } = require('../middleware/validate');
 const Auth = require('../models/auth');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const logger = require('../logs/logger')
 
 const registerUser = async (req, res) => {
     try {
@@ -31,35 +32,45 @@ const registerUser = async (req, res) => {
 
         res.json({ token });
 
+        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
+
     } catch (error) {
         res.status(400).json({ message: error.message });
+
+        logger.authlogger.log('error', `${error.message}`);
     }
 }
 
 const userLogin = async (req, res) => {
     try {
+        // Get the email and password from the user
         const { email, password} = req.body;
 
+        // Get the email from the database
         const user = await Auth.findOne({ email: email});
 
         if(!user){
             return res.status(404).json({ message: "Invalid Credentials"});
         }
-
+        
+        //Compare the password from user and from the db using bcrypt
         const isMatch = await bcrypt.compare(password, user.password);
 
         if(!isMatch){
             return res.status(404).json({ message: "Invalid Credentials"});
         }
 
+        // Assign user a token using JWT
         const token = await jwt.sign({email},process.env.ACCESS_TOKEN_SECRET,{ expiresIn: 300000});
 
         res.json({ token });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
 
-    // res.status(200).json({ msg: "Succesful" });
+        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
+    } catch (error) {
+        return res.status(400).json({ message: error.message });
+
+        // logger.authlogger.log('error', `${error.message}`);
+    }
 }
 
 const getAllUsers = async (req, res) => {
@@ -67,8 +78,13 @@ const getAllUsers = async (req, res) => {
         const users = await Auth.find({});
 
         res.status(200).json({ users });
+
+        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
+
     } catch (error) {
         res.status(400).json({ message: error.message });
+
+        logger.authlogger.log('error', `${error.message}`);
     }
 }
 
