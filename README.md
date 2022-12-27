@@ -9,6 +9,8 @@ Features of The System
 
 Tools Used
 1. Node Js
-2. MongoDb
+2. MongoDb and Mongoose
 3. JsonWebToken
 4. Bcrypt (For Hashing Passwords)
+5. Joi (For validation)
+6. Morgan (For logs)

@@ -2,10 +2,10 @@ const { schema } = require('../middleware/validate');
 const Auth = require('../models/auth');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const logger = require('../logs/logger')
+const asyncWrapper = require('../middleware/async');
+const { createCustomError } = require('../errors/custom-error');
 
-const registerUser = async (req, res) => {
-    try {
+const registerUser = asyncWrapper( async (req, res, next) => {
         // Validating user input using Joi        
         const { error } = await schema.validate(req.body)
 
@@ -15,7 +15,7 @@ const registerUser = async (req, res) => {
         const userExist = await Auth.findOne({ email: req.body.email });
 
         if(userExist){
-            return res.status(400).json({ msg: "User Already exists" });
+            return next(createCustomError('User already exists', 400));
         }
 
         const { email, password } = req.body;
@@ -31,18 +31,9 @@ const registerUser = async (req, res) => {
         const token = await jwt.sign({email},process.env.ACCESS_TOKEN_SECRET,{ expiresIn: 300000})
 
         res.json({ token });
+})
 
-        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
-
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-
-        logger.authlogger.log('error', `${error.message}`);
-    }
-}
-
-const userLogin = async (req, res) => {
-    try {
+const userLogin = asyncWrapper( async (req, res, next) => {
         // Get the email and password from the user
         const { email, password} = req.body;
 
@@ -50,43 +41,27 @@ const userLogin = async (req, res) => {
         const user = await Auth.findOne({ email: email});
 
         if(!user){
-            return res.status(404).json({ message: "Invalid Credentials"});
+            return next(createCustomError('Invalid Credentials', 404));
         }
         
         //Compare the password from user and from the db using bcrypt
         const isMatch = await bcrypt.compare(password, user.password);
 
         if(!isMatch){
-            return res.status(404).json({ message: "Invalid Credentials"});
+            return next(createCustomError('Invalid Credentials', 404));
         }
 
         // Assign user a token using JWT
         const token = await jwt.sign({email},process.env.ACCESS_TOKEN_SECRET,{ expiresIn: 300000});
 
         res.json({ token });
+})
 
-        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
-    } catch (error) {
-        return res.status(400).json({ message: error.message });
-
-        // logger.authlogger.log('error', `${error.message}`);
-    }
-}
-
-const getAllUsers = async (req, res) => {
-    try {
+const getAllUsers = asyncWrapper( async (req, res) => {
         const users = await Auth.find({});
 
         res.status(200).json({ users });
-
-        logger.authlogger.log('info', `Method: ${req.method} Origin: ${req.headers.origin} Url: ${req.url}`);
-
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-
-        logger.authlogger.log('error', `${error.message}`);
-    }
-}
+})
 
 module.exports = {
     registerUser,
